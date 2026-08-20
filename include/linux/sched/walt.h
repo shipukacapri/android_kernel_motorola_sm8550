@@ -145,6 +145,9 @@ struct walt_task_struct {
 	u8				enqueue_after_migration;
 	int				pipeline_cpu;
 	u64				mark_start_birth_ts;
+#if IS_ENABLED(CONFIG_SCHED_MOTO_UNFAIR)
+        u64 on_rq_timestamp;
+#endif
 };
 
 /*

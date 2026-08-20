@@ -754,6 +754,7 @@ static int32_t virt_npu_unmap_buf(struct npu_client *client,
 	ion_buf = npu_get_npu_ion_buffer(client, buf_hdl);
 	if (!ion_buf) {
 		NPU_ERR("could not find buffer\n");
+                mutex_unlock(&npu_dev->lock);
 		return -EINVAL;
 	}
 
@@ -906,6 +907,7 @@ static int32_t virt_npu_map_buf(struct npu_client *client,
 	if (!ion_buf) {
 		NPU_ERR("fail to alloc npu_ion_buffer\n");
 		rc = -ENOMEM;
+		mutex_unlock(&npu_dev->lock);
 		return rc;
 	}
 
@@ -914,7 +916,8 @@ static int32_t virt_npu_map_buf(struct npu_client *client,
 		NPU_ERR("dma_buf_get failed %d\n", ion_buf->fd);
 		rc = -ENOMEM;
 		ion_buf->dma_buf = NULL;
-		goto map_end;
+		mutex_unlock(&npu_dev->lock);
+		return rc;
 	}
 
 	ion_buf->attachment = dma_buf_attach(ion_buf->dma_buf,
@@ -923,7 +926,8 @@ static int32_t virt_npu_map_buf(struct npu_client *client,
 		NPU_ERR("failed to map attachment\n");
 		rc = -ENOMEM;
 		ion_buf->attachment = NULL;
-		goto map_end;
+		mutex_unlock(&npu_dev->lock);
+		return rc;
 	}
 
 	ion_buf->attachment->dma_map_attrs = DMA_ATTR_SKIP_CPU_SYNC;
@@ -934,7 +938,8 @@ static int32_t virt_npu_map_buf(struct npu_client *client,
 		NPU_ERR("npu dma_buf_map_attachment failed\n");
 		rc = -ENOMEM;
 		ion_buf->table = NULL;
-		goto map_end;
+		mutex_unlock(&npu_dev->lock);
+		return rc;
 	}
 
 	ion_buf->size = ion_buf->dma_buf->size;
@@ -943,7 +948,6 @@ static int32_t virt_npu_map_buf(struct npu_client *client,
 		ion_buf->table->nents, size, &ion_buf->iova);
 	mutex_unlock(&npu_dev->lock);
 
-map_end:
 	if (rc)
 		virt_npu_unmap_buf(client, buf_hdl, 0);
 	else
