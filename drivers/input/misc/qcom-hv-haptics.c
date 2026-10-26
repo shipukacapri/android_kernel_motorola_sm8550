@@ -6253,8 +6253,15 @@ static int richtap_file_mmap(struct file *filp, struct vm_area_struct *vma)
 	int ret = 0;
 
 	//only accept PROT_READ, PROT_WRITE and MAP_SHARED from the API of mmap
+	/*
+	 * Pass NULL rather than filp: the file argument only feeds
+	 * arch_calc_vm_flag_bits() -> shmem_file(), and this is a chardev
+	 * mapping which is never shmem-backed, so the result is 0 either way.
+	 * shmem_mapping() is not exported to modules, so referencing it here
+	 * would break the link.
+	 */
 	vm_flags_t vm_flags = calc_vm_prot_bits(PROT_READ|PROT_WRITE, 0) |
-		calc_vm_flag_bits(filp, MAP_SHARED);
+		calc_vm_flag_bits(NULL, MAP_SHARED);
 	vm_flags |= current->mm->def_flags | VM_MAYREAD |
 		VM_MAYWRITE | VM_MAYEXEC | VM_SHARED | VM_MAYSHARE;
 	if (vma && (pgprot_val(vma->vm_page_prot) != pgprot_val(vm_get_page_prot(vm_flags))))
@@ -6551,6 +6558,9 @@ static int haptics_probe(struct platform_device *pdev)
 		dev_info(chip->dev, "No voltage config,use default value:9000mV\n");
 		chip->lower_mv = 9000;
 	}
+
+	chip->custom_effect->vmax_mv = chip->lower_mv;
+
 	chip->rtp_ptr = kmalloc(RICHTAP_MMAP_BUF_SIZE * RICHTAP_MMAP_BUF_SUM, GFP_KERNEL);
 	if (chip->rtp_ptr == NULL)
 		goto destroy_ff;
